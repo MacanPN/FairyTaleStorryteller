@@ -10,7 +10,7 @@ model_text_completion = "gpt-4" # gpt-3.5-turbo-0125
 model_image_2_text = "gpt-4-vision-preview"
 model_text_2_image = "dall-e-3"
 
-api_key = "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"
+api_key = "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"
 client = openai.OpenAI(api_key=api_key)
 
 def encode_image(image_path):
