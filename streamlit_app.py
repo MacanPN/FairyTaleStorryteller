@@ -1,7 +1,6 @@
 import streamlit as st
 from PIL import Image
 import base64
-import lorem
 from io import BytesIO
 import requests
 import openai
