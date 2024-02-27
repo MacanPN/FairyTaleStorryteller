@@ -6,12 +6,11 @@ import requests
 import openai
 import json
 
+api_key = st.sidebar.text_input("Enter your OpenAI API key:", type="password", help="You can find your OpenAI API on the [OpenAI dashboard](https://platform.openai.com/account/api-keys)")
+
 model_text_completion = "gpt-4" # gpt-3.5-turbo-0125
 model_image_2_text = "gpt-4-vision-preview"
 model_text_2_image = "dall-e-3"
-
-api_key = "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"
-client = openai.OpenAI(api_key=api_key)
 
 def encode_image(image_path):
   with open(image_path, "rb") as image_file:
@@ -32,6 +31,7 @@ def scale_image(image):
     return image
 
 def image2text(image_path=None, base64_image=None, prompt="What’s in this image?", max_tokens=300):
+    print(api_key)
     if image_path:
         base64_image = encode_image(image_path)
     headers = {
@@ -62,11 +62,11 @@ def image2text(image_path=None, base64_image=None, prompt="What’s in this imag
     }
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
-    #print(response.json())
+    print(response.json())
     img_desc = response.json()["choices"][0]["message"]["content"]
     return img_desc
 
-def do_magic(input_image):
+def do_magic(input_image, client):
     # analyze the input image
     prompt = "What’s in this image? Only describe the people, objects and scenery and don't comment on the style or technique used."
     img_desc = image2text(base64_image=input_image, prompt=prompt)
@@ -162,8 +162,7 @@ def do_magic(input_image):
 
 def main():
     st.title("MagicCanvas: Where Drawings Spark Enchanting Stories")
-    api_key = st.sidebar.text_input("Enter your OpenAI API key:", type="password", help="You can find your OpenAI API on the [OpenAI dashboard](https://platform.openai.com/account/api-keys)")
-
+    client = openai.OpenAI(api_key=api_key)
     uploaded_file = st.sidebar.file_uploader("Upload your drawing", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
@@ -178,7 +177,9 @@ def main():
         image.save(buffered, format="JPEG")
         image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
         
-        magic = do_magic(image_base64)
+        with st.spinner("Please wait, magic in progress... ⏳"):
+            magic = do_magic(image_base64, client)
+        
         st.header(magic["story_title"])
         for i,p in enumerate(magic["story"]):
             st.write(p)
