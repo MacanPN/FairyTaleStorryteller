@@ -99,6 +99,7 @@ def do_magic(input_image, story_clue, client):
         ],
         )
         characters = characters_response.choices[0].message.content
+        print("Characters:",characters,"\n\n")
     st.write("Hidden wonders revealed by fairy light ✅")
     # generate story
     with st.spinner("Within the labyrinth of dreams, stories weave their intricate threads. Be patient, for soon the tapestry of magic shall be revealed 🌙✨"):
