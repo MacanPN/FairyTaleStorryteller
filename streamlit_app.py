@@ -68,91 +68,98 @@ def image2text(image_path=None, base64_image=None, prompt="What’s in this imag
 
 def do_magic(input_image, client):
     # analyze the input image
-    prompt = "What’s in this image? Only describe the people, objects and scenery and don't comment on the style or technique used."
-    img_desc = image2text(base64_image=input_image, prompt=prompt)
-
+    with st.spinner("Your drawing has caught the eye of our band of mystical fairies! They're diving into the intricate details of your creation, ready to craft a fairy tale filled with magic and wonder. Stay tuned for the enchanting reveal!... ⏳"):
+        prompt = "What’s in this image? Only describe the people, objects and scenery and don't comment on the style or technique used."
+        img_desc = image2text(base64_image=input_image, prompt=prompt)
+    st.write("Hidden wonders revealed by fairy light ✅")
     # generate story
-    print(img_desc)
-    fairy_tale_prompt = """ You are an automated system that generates a short fairy tale from an image description. 
-        User sends description of an image and you make use of the described characters, animals, objects and scenary in general, and write a fairy tale in 4 paragraphs.
-        Ignore information about the style and capabilities of the image author.
-        Describe a lively story with a touch of magic. Make up other characters, people and/or animals and have them interact with the main character.
-        Each paragraph should be ~100 words.
+    with st.spinner("Within the labyrinth of dreams, stories weave their intricate threads. Be patient, for soon the tapestry of magic shall be revealed 🌙✨"):
+        print(img_desc)
+        fairy_tale_prompt = """ You are an automated system that generates a short fairy tale from an image description. 
+            User sends description of an image and you make use of the described characters, animals, objects and scenary in general, and write a fairy tale in 4 paragraphs.
+            Ignore information about the style and capabilities of the image author.
+            Describe a lively story with a touch of magic. Make up other characters, people and/or animals and have them interact with the main character.
+            Each paragraph should be ~100 words.
 
-        Return result in JSON array format containing 4 elements. Each paragraph will be an element in the array.
-    """
-    story = client.chat.completions.create(
-        model=model_text_completion,
-        messages=[
-            {"role": "system", "content": fairy_tale_prompt},
-            {"role": "user", "content": img_desc}
-        ]
-    )
-    paragraphs = eval(story.choices[0].message.content)
-    print("Story:")
-    for i,p in enumerate(paragraphs):
-        print("\t",i,":",p)
-    
+            Return result in JSON array format containing 4 elements. Each paragraph will be an element in the array.
+        """
+        story = client.chat.completions.create(
+            model=model_text_completion,
+            messages=[
+                {"role": "system", "content": fairy_tale_prompt},
+                {"role": "user", "content": img_desc}
+            ]
+        )
+        paragraphs = eval(story.choices[0].message.content)
+        print("Story:")
+        for i,p in enumerate(paragraphs):
+            print("\t",i,":",p)
+    st.write("Pages flutter as tales come alive ✅")
+
     # come up with the name for the fairy tale
-    naming_prompt = """Come up with a fitting name for the following fairy tale:
-    
-    Story: {story}
-    """
-    story_title = client.chat.completions.create(
-        model=model_text_completion,
-        messages=[
-            {"role": "user", "content": naming_prompt.format(story="\n".join(paragraphs))}
-        ]
-    ).choices[0].message.content
-    print("Title:",story_title)
+    with st.spinner("Just a moment longer! We're weaving spells to find the ideal title for your fairy tale. Get ready to be captivated by the magic of words!"):
+        naming_prompt = """Come up with a fitting name for the following fairy tale:
+        
+        Story: {story}
+        """
+        story_title = client.chat.completions.create(
+            model=model_text_completion,
+            messages=[
+                {"role": "user", "content": naming_prompt.format(story="\n".join(paragraphs))}
+            ]
+        ).choices[0].message.content.strip('"')
+        print("Title:",story_title)
+    st.write("Words shimmer, forming the perfect enchantment ✅")    
+
     # generate illustration descriptions
-    image_description_sys_prompt = """
-    You are an assistant that generates ideas for fairy tale illustrations.
-    User submits a fairy tale and you generate description of one illustration per paragraph.
+    with st.spinner("The magic doesn't stop with words! We're in the midst of conjuring beautiful illustrations to bring your fairy tale to life. Your patience will soon be rewarded!"):
+        image_description_sys_prompt = """
+        You are an assistant that generates ideas for fairy tale illustrations.
+        User submits a fairy tale and you generate description of one illustration per paragraph.
 
-    Return the results in a JSON array. Each array element will be string describing one illustration.
-    """
-    image_description_user_prompt = """
-    Following fairy tale consists of 4 paragraphs. Generate illustration ideas for each paragraph.
+        Return the results in a JSON array. Each array element will be string describing one illustration.
+        """
+        image_description_user_prompt = """
+        Following fairy tale consists of 4 paragraphs. Generate illustration ideas for each paragraph.
 
-    Fairy tale: {fairy_tale}
-    """
-    image_description_response = client.chat.completions.create(
-        model=model_text_completion,
-        messages=[
-            {"role": "system", "content": image_description_sys_prompt},
-            {"role": "user", "content": image_description_user_prompt.format(fairy_tale="\n\n".join(paragraphs))}
-        ]
-    )
-    image_descriptions = json.loads(image_description_response.choices[0].message.content)
-    print("Image descriptions:")
-    for i,p in enumerate(image_descriptions):
-        print(i,":",p)
-    
-    # generate illustrations
-    image_prompt = """
-    Image description: {img_desc}
+        Fairy tale: {fairy_tale}
+        """
+        image_description_response = client.chat.completions.create(
+            model=model_text_completion,
+            messages=[
+                {"role": "system", "content": image_description_sys_prompt},
+                {"role": "user", "content": image_description_user_prompt.format(fairy_tale="\n\n".join(paragraphs))}
+            ]
+        )
+        image_descriptions = json.loads(image_description_response.choices[0].message.content)
+        print("Image descriptions:")
+        for i,p in enumerate(image_descriptions):
+            print(i,":",p)
+        
+        # generate illustrations
+        image_prompt = """
+        Image description: {img_desc}
 
-    Try to immitate animation style of Disney or Pixar studios.
-    """
-    output_images = []
-    for i,image_desc in enumerate(image_descriptions):
-        output_images.append(
-            Image.open(
-                BytesIO(
-                    base64.b64decode(
-                        client.images.generate( model=model_text_2_image,
-                                                prompt=image_prompt.format(img_desc=image_desc),
-                                                size="1024x1024",
-                                                quality="standard",
-                                                response_format="b64_json",
-                                                n=1,
-                                                ).data[0].b64_json
+        Try to immitate animation style of Disney or Pixar studios.
+        """
+        output_images = []
+        for i,image_desc in enumerate(image_descriptions):
+            output_images.append(
+                Image.open(
+                    BytesIO(
+                        base64.b64decode(
+                            client.images.generate( model=model_text_2_image,
+                                                    prompt=image_prompt.format(img_desc=image_desc),
+                                                    size="1024x1024",
+                                                    quality="standard",
+                                                    response_format="b64_json",
+                                                    n=1,
+                                                    ).data[0].b64_json
+                        )
                     )
                 )
             )
-        )
-    
+    st.write("Canvas aglow with mystical strokes ✅")
     return {"input_img_desc":img_desc,
             "story_title": story_title,
             "story": paragraphs,
@@ -161,7 +168,7 @@ def do_magic(input_image, client):
     }
 
 def main():
-    st.title("MagicCanvas: Where Drawings Spark Enchanting Stories")
+    st.title("WonderWeaver")
     client = openai.OpenAI(api_key=api_key)
     uploaded_file = st.sidebar.file_uploader("Upload your drawing", type=["jpg", "jpeg", "png"])
 
@@ -177,8 +184,7 @@ def main():
         image.save(buffered, format="JPEG")
         image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
         
-        with st.spinner("Please wait, magic in progress... ⏳"):
-            magic = do_magic(image_base64, client)
+        magic = do_magic(image_base64, client)
         
         st.header(magic["story_title"])
         for i,p in enumerate(magic["story"]):
