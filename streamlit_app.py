@@ -6,6 +6,17 @@ import requests
 import openai
 import json
 
+app_description = """
+Welcome to the Enchanted Story Weaver, where dreams and drawings intertwine to create magical fairy tales!
+
+**How It Works:**
+1. **Upload Your Drawing:** Share your imaginative artwork with our mystical fairies.
+2. **Provide Clues (Optional):** Offer hints or let the fairies work their magic solo.
+3. **Experience the Magic:** Sit back and watch as our fairies transform your drawing into an enchanting story.
+🧚✨
+"""
+
+st.sidebar.markdown(app_description)
 api_key = st.sidebar.text_input("Enter your OpenAI API key:", type="password", help="You can find your OpenAI API on the [OpenAI dashboard](https://platform.openai.com/account/api-keys)")
 
 model_text_completion = "gpt-4" # gpt-3.5-turbo-0125
@@ -63,19 +74,39 @@ def image2text(image_path=None, base64_image=None, prompt="What’s in this imag
     response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
 
     print(response.json())
+    if "error" in response.json():
+        st.error(response.json())
+        return False
     img_desc = response.json()["choices"][0]["message"]["content"]
     return img_desc
 
-def do_magic(input_image, client):
+def do_magic(input_image, story_clue, client):
     # analyze the input image
     with st.spinner("Your drawing has caught the eye of our band of mystical fairies! They're diving into the intricate details of your creation, ready to craft a fairy tale filled with magic and wonder. Stay tuned for the enchanting reveal!... ⏳"):
         prompt = "What’s in this image? Only describe the people, objects and scenery and don't comment on the style or technique used."
         img_desc = image2text(base64_image=input_image, prompt=prompt)
+        characters_prompt = """
+        Below is pasted a description of an image. Extract from it only description of characters: people and animals (if any). 
+        Ignore the scenary, surroundings, pose etc. Include what clothes and shoes they are wearing, including their color; their ethnicity, hair color etc.
+
+        Image description: {img_desc}
+        """
+        characters_response = client.chat.completions.create(
+        model=model_text_completion,
+        messages=[
+            {"role": "system", "content": "You are a helpful asistant."},
+            {"role": "user", "content": characters_prompt.format(img_desc=img_desc)}
+        ],
+        )
+        characters = characters_response.choices[0].message.content
     st.write("Hidden wonders revealed by fairy light ✅")
     # generate story
     with st.spinner("Within the labyrinth of dreams, stories weave their intricate threads. Be patient, for soon the tapestry of magic shall be revealed 🌙✨"):
         print(img_desc)
-        fairy_tale_prompt = """ You are an automated system that generates a short fairy tale from an image description. 
+        fairy_tale_user_prompt = img_desc
+        if len(story_clue.strip())>5:
+            fairy_tale_user_prompt += "Please also incorporate following clue(s) to the story line: {story_clue}".format(story_clue=story_clue)
+        fairy_tale_sys_prompt = """ You are an automated system that generates a short fairy tale from an image description. 
             User sends description of an image and you make use of the described characters, animals, objects and scenary in general, and write a fairy tale in 4 paragraphs.
             Ignore information about the style and capabilities of the image author.
             Describe a lively story with a touch of magic. Make up other characters, people and/or animals and have them interact with the main character.
@@ -86,8 +117,8 @@ def do_magic(input_image, client):
         story = client.chat.completions.create(
             model=model_text_completion,
             messages=[
-                {"role": "system", "content": fairy_tale_prompt},
-                {"role": "user", "content": img_desc}
+                {"role": "system", "content": fairy_tale_sys_prompt},
+                {"role": "user", "content": fairy_tale_user_prompt}
             ]
         )
         paragraphs = eval(story.choices[0].message.content)
@@ -139,6 +170,8 @@ def do_magic(input_image, client):
         # generate illustrations
         image_prompt = """
         Image description: {img_desc}
+        
+        Individuals: {characters}
 
         Try to immitate animation style of Disney or Pixar studios.
         """
@@ -149,7 +182,7 @@ def do_magic(input_image, client):
                     BytesIO(
                         base64.b64decode(
                             client.images.generate( model=model_text_2_image,
-                                                    prompt=image_prompt.format(img_desc=image_desc),
+                                                    prompt=image_prompt.format(img_desc=image_desc, characters=characters),
                                                     size="1024x1024",
                                                     quality="standard",
                                                     response_format="b64_json",
@@ -168,12 +201,15 @@ def do_magic(input_image, client):
     }
 
 def main():
-    st.title("WonderWeaver")
+    st.title("Enchanted Story Weaver")
     client = openai.OpenAI(api_key=api_key)
-    uploaded_file = st.sidebar.file_uploader("Upload your drawing", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.sidebar.file_uploader("Summon the Story: Share Your Mystical Art", type=["jpg", "jpeg", "png"])
+    story_clue = st.sidebar.text_area("Craft the Journey: Provide Story Sparks!\nDon't worry about filling this space! Our mystical fairies can also weave a tale solely from the essence of your drawing.",
+                                      height=40,
+                                      max_chars=500)
 
     if uploaded_file is not None:
-        st.header("Your image")
+        st.subheader("Thank you for this masterpiece!", divider="blue")
         image = Image.open(uploaded_file)
         image = scale_image(image)
         print(type(image))
@@ -184,7 +220,8 @@ def main():
         image.save(buffered, format="JPEG")
         image_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
         
-        magic = do_magic(image_base64, client)
+    if st.sidebar.button("Whisper magic!"):
+        magic = do_magic(image_base64, story_clue, client)
         
         st.header(magic["story_title"])
         for i,p in enumerate(magic["story"]):
