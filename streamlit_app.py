@@ -11,6 +11,7 @@ model_image_2_text = "gpt-4-vision-preview"
 model_text_2_image = "dall-e-3"
 
 api_key = "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"
+openai.api_key= api_key
 #api_key = ""
 client = openai.OpenAI()
 
